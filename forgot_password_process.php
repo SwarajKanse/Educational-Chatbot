@@ -33,4 +33,48 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         
         if ($update_stmt->execute()) {
             // Send reset email
-            $reset_link = "http://" . $_SERVER['HTTP_HOST'] . "/reset_
+            $reset_link = "http://" . $_SERVER['HTTP_HOST'] . "/reset_password.php?token=" . $reset_token;
+            
+            $to = $email;
+            $subject = "Password Reset - Student Chatbot";
+            $message = "Hello " . $user['name'] . ",\n\n";
+            $message .= "You requested to reset your password. Please click the link below to reset your password:\n\n";
+            $message .= $reset_link . "\n\n";
+            $message .= "This link will expire in 1 hour.\n\n";
+            $message .= "If you did not request a password reset, please ignore this email.\n\n";
+            $message .= "Regards,\nStudent Chatbot Team";
+            $headers = "From: noreply@studentchatbot.com";
+            
+            if (mail($to, $subject, $message, $headers)) {
+                $_SESSION['success'] = "Password reset email sent! Please check your inbox.";
+                header("Location: forgot_password.php");
+                exit();
+            } else {
+                $_SESSION['error'] = "Failed to send password reset email. Please try again.";
+                header("Location: forgot_password.php");
+                exit();
+            }
+        } else {
+            $_SESSION['error'] = "Failed to process password reset. Please try again.";
+            header("Location: forgot_password.php");
+            exit();
+        }
+        
+        $update_stmt->close();
+    } else {
+        // We don't want to reveal if an email exists or not for security reasons
+        // So we show a generic success message even if the email doesn't exist
+        $_SESSION['success'] = "If your email exists in our system, you will receive a password reset link.";
+        header("Location: forgot_password.php");
+        exit();
+    }
+    
+    $stmt->close();
+} else {
+    // Not a POST request
+    header("Location: forgot_password.php");
+    exit();
+}
+
+$conn->close();
+?>
