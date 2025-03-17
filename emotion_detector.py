@@ -22,7 +22,6 @@ request_times = []
 REQUEST_WINDOW = 60  # 1 minute window for rate limiting
 MAX_REQUESTS = 100   # Max requests per minute
 LANGCHAIN_AGENT_URL = os.getenv("LANGCHAIN_AGENT_URL", "http://localhost:5000/query")
-LANGCHAIN_UPLOAD_URL = os.getenv("LANGCHAIN_UPLOAD_URL", "http://localhost:5000/upload")
 
 def load_model():
     """Lazy loading of the model"""
@@ -72,7 +71,7 @@ def forward_to_langchain(message, emotion, session_id=None):
         
         payload = {
             "message": enhanced_message,
-            "user_id": session_id or "default_user"
+            "session_id": session_id
         }
         
         # Send request to LangChain agent
@@ -108,7 +107,7 @@ def detect_emotion():
         if not text:
             return jsonify({"error": "No text provided"}), 400
         
-        # Log request (truncate long text)
+        # Log request (truncate long text
         log_text = text[:50] + "..." if len(text) > 50 else text
         logger.info(f"Processing text: {log_text}")
         
@@ -117,66 +116,14 @@ def detect_emotion():
         result = detect_emotion_cached(text)
         processing_time = time.time() - start_time
         
-        # Forward to LangChain agent if requested
-        if forward_to_agent:
-            langchain_response = forward_to_langchain(text, result[0], session_id)
-            response_data = {
-                "emotion": result[0],
-                "processing_time": processing_time,
-                "langchain_response": langchain_response
-            }
-        else:
-            response_data = {
-                "emotion": result[0],
-                "processing_time": processing_time
-            }
-        
         logger.info(f"Processing completed in {processing_time:.2f} seconds")
-        return jsonify(response_data)
+        return jsonify({
+            "emotion": result,
+            "processing_time": processing_time
+        })
     
     except Exception as e:
         logger.error(f"Error processing request: {str(e)}")
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/upload", methods=["POST"])
-def upload_file():
-    """Proxy for file uploads to the LangChain agent"""
-    # Check rate limit
-    if not check_rate_limit():
-        return jsonify({"error": "Rate limit exceeded. Try again later."}), 429
-    
-    try:
-        # Get session ID from form data
-        session_id = request.form.get("session_id", "default_user")
-        
-        # Check if file is included in the request
-        if "file" not in request.files:
-            return jsonify({"error": "No file provided"}), 400
-        
-        file = request.files["file"]
-        
-        if file.filename == "":
-            return jsonify({"error": "No file selected"}), 400
-        
-        # Forward the file to the LangChain agent
-        files = {"file": (file.filename, file.read(), file.content_type)}
-        form_data = {"user_id": session_id}
-        
-        response = requests.post(
-            LANGCHAIN_UPLOAD_URL,
-            files=files,
-            data=form_data,
-            timeout=30  # Longer timeout for file processing
-        )
-        
-        if response.status_code == 200:
-            return jsonify(response.json())
-        else:
-            logger.error(f"Error from LangChain upload: {response.text}")
-            return jsonify({"error": "Failed to upload file to LangChain agent"}), response.status_code
-    
-    except Exception as e:
-        logger.error(f"Error uploading file: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 # Preload the model if environment variable is set

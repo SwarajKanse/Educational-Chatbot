@@ -13,163 +13,16 @@ body {
 /* Chat Container */
 .chat-container {
   width: 100%;
-  max-width: 1200px;
+  max-width: 800px;
   height: 85vh;
   margin: 20px;
   background: #fff;
   border-radius: 12px;
   box-shadow: 0 5px 25px rgba(0, 0, 0, 0.1);
   display: flex;
-  overflow: hidden;
-  position: relative;
-}
-
-/* Sidebar */
-.sidebar {
-  width: 300px;
-  background: #f0f2f7;
-  border-right: 1px solid #e0e5ee;
-  display: flex;
-  flex-direction: column;
-  padding: 20px;
-}
-
-.logo {
-  text-align: center;
-  margin-bottom: 20px;
-}
-
-.logo h1 {
-  margin: 0;
-  font-size: 24px;
-  color: #4285f4;
-}
-
-.upload-container {
-  margin-bottom: 20px;
-}
-
-.upload-container h3 {
-  margin-top: 0;
-  margin-bottom: 10px;
-  font-size: 16px;
-  color: #333;
-}
-
-.file-input-container {
-  position: relative;
-  margin-bottom: 10px;
-}
-
-.file-input-container input[type="file"] {
-  position: absolute;
-  left: -9999px;
-}
-
-.file-input-label {
-  display: inline-block;
-  padding: 8px 12px;
-  background-color: #e0e5ee;
-  color: #333;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: background-color 0.2s;
-}
-
-.file-input-label:hover {
-  background-color: #d0d5e0;
-}
-
-#file-name {
-  display: block;
-  margin-top: 5px;
-  font-size: 13px;
-  color: #666;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
-}
-
-#upload-button {
-  padding: 8px 12px;
-  background-color: #4285f4;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  width: 100%;
-}
-
-#upload-button:hover {
-  background-color: #3367d6;
-}
-
-#upload-status {
-  margin-top: 10px;
-  font-size: 13px;
-  color: #666;
-}
-
-/* Document list */
-.document-list-container {
-  flex: 1;
-  overflow-y: auto;
-}
-
-.document-list-container h3 {
-  margin-top: 0;
-  margin-bottom: 10px;
-  font-size: 16px;
-  color: #333;
-}
-
-#document-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-#document-list li {
-  padding: 8px 10px;
-  background-color: #fff;
-  border-radius: 4px;
-  margin-bottom: 8px;
-  font-size: 14px;
-  border: 1px solid #e0e5ee;
-}
-
-#document-list li.empty-list {
-  color: #999;
-  font-style: italic;
-}
-
-.danger-button {
-  margin-top: 10px;
-  padding: 8px 12px;
-  background-color: #f44336;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  width: 100%;
-}
-
-.danger-button:hover {
-  background-color: #d32f2f;
-}
-
-/* Main content */
-.main-content {
-  flex: 1;
-  display: flex;
   flex-direction: column;
   overflow: hidden;
+  position: relative;
 }
 
 /* Chat Box - Scrollable message area */
@@ -339,68 +192,12 @@ body {
   }
 }
 
-/* File upload success/error messages */
-.success-message {
-  color: #4caf50;
-  font-weight: bold;
-}
-
-.error-message {
-  color: #f44336;
-  font-weight: bold;
-}
-
-/* Document list item */
-.document-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.document-name {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.document-actions {
-  display: flex;
-  gap: 5px;
-}
-
-.document-actions button {
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: #666;
-  font-size: 14px;
-  padding: 2px 5px;
-}
-
-.document-actions button:hover {
-  color: #333;
-}
-
 /* Responsive design */
 @media (max-width: 768px) {
   .chat-container {
     height: 100vh;
     margin: 0;
     border-radius: 0;
-    flex-direction: column;
-  }
-  
-  .sidebar {
-    width: auto;
-    height: 30%;
-    border-right: none;
-    border-bottom: 1px solid #e0e5ee;
-    overflow-y: auto;
-  }
-  
-  .main-content {
-    height: 70%;
   }
   
   .text {
