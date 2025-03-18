@@ -71,104 +71,148 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
       }
       
-      // Submit the form
-      signupForm.submit();
-    });
-  }
+      // Submit the form using fetch API
+	fetch(signupForm.action, {
+		method: 'POST',
+		body: new FormData(signupForm)
+	})
+	.then(response => response.json())
+	.catch(error => {
+		console.error('Error submitting form:', error);
+		showAlert('Error submitting form. Please try again.', 'error');
+	});
+    
+});
+}
   
-  // Google sign-in
-  const googleLoginBtn = document.getElementById('google-login');
-  if (googleLoginBtn) {
-    googleLoginBtn.addEventListener('click', function() {
-      auth.signInWithPopup(provider)
-        .then((result) => {
-          // Handle successful Google sign-in
-          const user = result.user;
-          
-          // Send user data to PHP backend
-          fetch('google_auth.php', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              uid: user.uid,
-              email: user.email,
-              name: user.displayName,
-              photoURL: user.photoURL,
-              action: 'login'
-            }),
-          })
-          .then(response => response.json())
-          .then(data => {
-            if (data.success) {
-              window.location.href = 'index.php';
-            } else {
-              showAlert(data.message || 'Error signing in with Google', 'error');
-            }
-          })
-          .catch(error => {
-            showAlert('Error communicating with server', 'error');
-            console.error(error);
-          });
-        })
-        .catch((error) => {
-          // Handle errors
-          showAlert(error.message, 'error');
-          console.error(error);
+// Google sign-in
+const googleLoginBtn = document.getElementById('google-login');
+if (googleLoginBtn) {
+  googleLoginBtn.addEventListener('click', function() {
+    // Set a flag to prevent redirect loops
+    window.isProcessingLogin = true;
+    
+    auth.signInWithPopup(provider)
+      .then((result) => {
+        // Handle successful Google sign-in
+        const user = result.user;
+        
+        // Show a loading indicator or message
+        showAlert('Signing in with Google...', 'info');
+        
+        // Send user data to PHP backend
+        return fetch('google_auth.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            uid: user.uid,
+            email: user.email,
+            name: user.displayName,
+            photoURL: user.photoURL,
+            action: 'login'
+          }),
         });
-    });
-  }
-  
-  // Google sign-up
-  const googleSignupBtn = document.getElementById('google-signup');
-  if (googleSignupBtn) {
-    googleSignupBtn.addEventListener('click', function() {
-      auth.signInWithPopup(provider)
-        .then((result) => {
-          // Handle successful Google sign-up
-          const user = result.user;
-          
-          // Send user data to PHP backend
-          fetch('google_auth.php', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              uid: user.uid,
-              email: user.email,
-              name: user.displayName,
-              photoURL: user.photoURL,
-              action: 'signup'
-            }),
-          })
-          .then(response => response.json())
-          .then(data => {
-            if (data.success) {
-              window.location.href = 'index.php';
-            } else {
-              showAlert(data.message || 'Error signing up with Google', 'error');
-            }
-          })
-          .catch(error => {
-            showAlert('Error communicating with server', 'error');
-            console.error(error);
-          });
-        })
-        .catch((error) => {
-          // Handle errors
-          showAlert(error.message, 'error');
-          console.error(error);
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          // Clear the processing flag first
+          window.isProcessingLogin = false;
+          // Redirect to index page
+          window.location.href = 'index.php';
+        } else {
+          window.isProcessingLogin = false;
+          showAlert(data.message || 'Error signing in with Google', 'error');
+        }
+      })
+      .catch((error) => {
+        // Handle errors
+        window.isProcessingLogin = false;
+        showAlert(error.message, 'error');
+        console.error(error);
+      });
+  });
+}
+
+// Similarly update the Google sign-up handler with the same pattern
+const googleSignupBtn = document.getElementById('google-signup');
+if (googleSignupBtn) {
+  googleSignupBtn.addEventListener('click', function() {
+    // Set a flag to prevent redirect loops
+    window.isProcessingLogin = true;
+    
+    auth.signInWithPopup(provider)
+      .then((result) => {
+        // Handle successful Google sign-up
+        const user = result.user;
+        
+        // Show a loading indicator or message
+        showAlert('Creating account with Google...', 'info');
+        
+        // Send user data to PHP backend
+        return fetch('google_auth.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            uid: user.uid,
+            email: user.email,
+            name: user.displayName,
+            photoURL: user.photoURL,
+            action: 'signup'
+          }),
         });
-    });
-  }
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          // Clear the processing flag first
+          window.isProcessingLogin = false;
+          // Redirect to index page
+          window.location.href = 'index.php';
+        } else {
+          window.isProcessingLogin = false;
+          showAlert(data.message || 'Error signing up with Google', 'error');
+        }
+      })
+      .catch((error) => {
+        // Handle errors
+        window.isProcessingLogin = false;
+        showAlert(error.message, 'error');
+        console.error(error);
+      });
+  });
+}
   
   // Check if user is already signed in
-  auth.onAuthStateChanged(function(user) {
-    if (user && window.location.pathname.includes('login.html')) {
-      // User is signed in and on login page, redirect to index
-      window.location.href = 'index.php';
-    }
-  });
+	auth.onAuthStateChanged(function(user) {
+	// Only redirect if we're not already processing a login
+		if (user && window.location.pathname.includes('login.html') && !window.isProcessingLogin) {
+		// Set a flag to prevent redirect loops
+		window.isProcessingLogin = true;
+    
+		// Verify with your backend first
+		fetch('check_session.php')
+		.then(response => response.json())
+		.then(data => {
+		if (data.logged_in) {
+			window.location.href = 'index.php';
+		} else {
+			// User is authenticated in Firebase but not in your PHP session
+			// Force a Google auth to sync them
+			auth.signInWithPopup(provider)
+			.then(result => {
+            // Handle through your existing Google login process
+			});
+		}
+		})
+		.catch(error => {
+			console.error('Session check failed:', error);
+		});
+	}
+	});
+  
 });

@@ -55,11 +55,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $stmt->bind_param("sssss", $name, $email, $hashed_password, $verification_token, $token_expiry);
     
     if ($stmt->execute()) {
-        // Set session data to log the user in
-        $_SESSION['user_id'] = $conn->insert_id;
-        $_SESSION['user_name'] = $name;
-        $_SESSION['user_email'] = $email;
-        $_SESSION['logged_in'] = true;
+        
 
         // Send verification email
         $verification_link = "http://" . $_SERVER['HTTP_HOST'] . "/verify_email.php?token=" . $verification_token;
