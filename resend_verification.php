@@ -92,7 +92,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['email'])) {
     }
     
     // Prepare verification email
-    $verification_link = "http://" . $_SERVER['HTTP_HOST'] . "/verify_email.php?token=" . $verification_token;
+    $verification_link = "http://" . $_SERVER['HTTP_HOST'] . "/direct_verify.php?token=" . $verification_token;
     
     $subject = "Verify Your Email - Student Chatbot";
     $message = "Hello " . $user['name'] . ",\n\n";
@@ -111,7 +111,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['email'])) {
     
 } else {
     // Show the form if it's not a POST request
-    include_once 'header.php';
+    // Removed include_once 'header.php' - we'll handle the entire page here
 ?>
 <!DOCTYPE html>
 <html lang="en">
