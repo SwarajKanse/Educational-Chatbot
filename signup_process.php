@@ -109,7 +109,7 @@ try {
         
         if ($stmt->execute()) {
             // Prepare verification email
-            $verification_link = "http://" . $_SERVER['HTTP_HOST'] . "/verify_email.php?token=" . $verification_token;
+            $verification_link = "http://" . $_SERVER['HTTP_HOST'] . "/WBP_Programs/Chatbot/direct_verify.php?token=" . $verification_token;
             
             $subject = "Verify Your Email - Student Chatbot";
             $message = "Hello " . $name . ",\n\n";

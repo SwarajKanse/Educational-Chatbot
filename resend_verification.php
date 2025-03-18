@@ -92,7 +92,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['email'])) {
     }
     
     // Prepare verification email
-    $verification_link = "http://" . $_SERVER['HTTP_HOST'] . "/direct_verify.php?token=" . $verification_token;
+    $verification_link = "http://" . $_SERVER['HTTP_HOST'] . "/WBP_Programs/Chatbot/direct_verify.php?token=" . $verification_token;
     
     $subject = "Verify Your Email - Student Chatbot";
     $message = "Hello " . $user['name'] . ",\n\n";
