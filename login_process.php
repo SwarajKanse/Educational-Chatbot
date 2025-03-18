@@ -6,16 +6,71 @@ error_reporting(E_ALL);
 require_once 'db_connect.php';
 require_once 'functions.php';
 
+// Check if request wants JSON response
+function wants_json() {
+    return (isset($_SERVER['HTTP_ACCEPT']) && 
+           (strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false)) ||
+           isset($_SERVER['HTTP_X_REQUESTED_WITH']) && 
+           strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
+}
+
+// JSON response helper
+function json_response($success, $message, $redirect = null) {
+    header('Content-Type: application/json');
+    $response = [
+        'success' => $success,
+        'message' => $message
+    ];
+    
+    if ($redirect) {
+        $response['redirect'] = $redirect;
+    }
+    
+    echo json_encode($response);
+    exit();
+}
+
+// Regular response helper (with redirect)
+function regular_response($success, $message, $redirect) {
+    if ($success) {
+        $_SESSION['success'] = $message;
+    } else {
+        $_SESSION['error'] = $message;
+    }
+    header("Location: $redirect");
+    exit();
+}
+
+// Response based on request type
+function respond($success, $message, $redirect) {
+    if (wants_json()) {
+        json_response($success, $message, $redirect);
+    } else {
+        regular_response($success, $message, $redirect);
+    }
+}
+
+// Log to file for debugging
+function debug_log($message) {
+    error_log(date('[Y-m-d H:i:s] ') . $message . "\n", 3, "login_debug.log");
+}
+
+// Start the login process
+debug_log("Login process started");
+
 // Check if form is submitted
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $email = trim($_POST['email']);
-    $password = $_POST['password'];
+    debug_log("POST request received");
+    
+    $email = trim($_POST['email'] ?? '');
+    $password = $_POST['password'] ?? '';
+    
+    debug_log("Login attempt for email: " . $email);
     
     // Basic validation
     if (empty($email) || empty($password)) {
-        $_SESSION['error'] = "Please fill in all fields";
-        header("Location: login.html");
-        exit();
+        debug_log("Validation failed: empty fields");
+        respond(false, "Please fill in all fields", "login.html");
     }
     
     // Check if email exists
@@ -26,11 +81,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     
     if ($result->num_rows == 1) {
         $user = $result->fetch_assoc();
+        debug_log("User found with ID: " . $user['id']);
         
         // Verify password
         if (password_verify($password, $user['password'])) {
+            debug_log("Password verified successfully");
+            
             // Check if email is verified
             if ($user['is_verified'] == 1) {
+                debug_log("User is verified, logging in");
+                
                 // Login successful
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['user_name'] = $user['name'];
@@ -42,33 +102,36 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $stmt->bind_param("i", $user['id']);
                 $stmt->execute();
                 
+                debug_log("User logged in and redirecting to index.php");
+                
                 // Redirect to dashboard/home
-                header("Location: index.php");
-                exit();
+                respond(true, "Login successful!", "index.php");
             } else {
+                debug_log("Email not verified");
+                
                 // Email not verified
-                $_SESSION['error'] = "Please verify your email before logging in. <a href='resend_verification.php?email=" . urlencode($email) . "'>Resend verification email</a>";
-                header("Location: login.html");
-                exit();
+                $resend_link = "<a href='resend_verification.php?email=" . urlencode($email) . "'>Resend verification email</a>";
+                respond(false, "Please verify your email before logging in. " . $resend_link, "login.html");
             }
         } else {
+            debug_log("Invalid password");
+            
             // Invalid password
-            $_SESSION['error'] = "Invalid email or password";
-            header("Location: login.html");
-            exit();
+            respond(false, "Invalid email or password", "login.html");
         }
     } else {
+        debug_log("User not found");
+        
         // User not found
-        $_SESSION['error'] = "Invalid email or password";
-        header("Location: login.html");
-        exit();
+        respond(false, "Invalid email or password", "login.html");
     }
     
     $stmt->close();
 } else {
+    debug_log("Not a POST request, redirecting to login page");
+    
     // Not a POST request
-    header("Location: login.html");
-    exit();
+    respond(false, "Invalid request method", "login.html");
 }
 
 $conn->close();

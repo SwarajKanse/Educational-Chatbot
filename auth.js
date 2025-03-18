@@ -15,25 +15,81 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 5000);
   }
   
-  // Login form submission
-  const loginForm = document.getElementById('login-form');
-  if (loginForm) {
-    loginForm.addEventListener('submit', function(e) {
-      e.preventDefault();
-      
-      const email = document.getElementById('email').value;
-      const password = document.getElementById('password').value;
-      
-      // Client-side validation
-      if (!email || !password) {
-        showAlert('Please fill in all fields', 'error');
+// Login form submission - modified code
+const loginForm = document.getElementById('login-form');
+if (loginForm) {
+  loginForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    
+    // Client-side validation
+    if (!email || !password) {
+      showAlert('Please fill in all fields', 'error');
+      return;
+    }
+    
+    // Show loading state
+    showAlert('Logging in...', 'info');
+    
+    // Use fetch API instead of traditional form submission
+    fetch(loginForm.action, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        'email': email,
+        'password': password
+      })
+    })
+    .then(response => {
+      // First check if redirect occurred
+      if (response.redirected) {
+        window.location.href = response.url;
         return;
       }
       
-      // Submit the form
-      loginForm.submit();
+      // Otherwise try to parse JSON response
+      return response.text().then(text => {
+        try {
+          return JSON.parse(text);
+        } catch (e) {
+          // If not valid JSON, check if it's HTML with redirect
+          if (text.includes("<script>") && text.includes("window.location")) {
+            // Extract redirect URL if possible
+            const match = text.match(/window\.location\.href\s*=\s*['"]([^'"]+)['"]/);
+            if (match) {
+              window.location.href = match[1];
+              return;
+            }
+          }
+          console.error("Non-JSON response:", text);
+          return { success: false, message: "Server error. Please try again." };
+        }
+      });
+    })
+    .then(data => {
+      // Only process if we got JSON data (and not already redirected)
+      if (data) {
+        if (data.success) {
+          showAlert(data.message || 'Login successful!', 'success');
+          // Redirect after short delay
+          setTimeout(() => {
+            window.location.href = data.redirect || 'index.php';
+          }, 1000);
+        } else {
+          showAlert(data.message || 'Login failed. Please check your credentials.', 'error');
+        }
+      }
+    })
+    .catch(error => {
+      console.error('Error during login:', error);
+      showAlert('Network error. Please check your connection and try again.', 'error');
     });
-  }
+  });
+}
   
 // Signup form submission
 const signupForm = document.getElementById('signup-form');

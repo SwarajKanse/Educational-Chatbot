@@ -19,6 +19,50 @@ function json_response($success, $message) {
     exit();
 }
 
+// Improved function to send emails using PHPMailer
+function send_email($to, $subject, $message, $from_name = "Student Chatbot", $from_email = "noreply@studentchatbot.com") {
+    // Check if PHPMailer is already required/included
+    if (!class_exists('PHPMailer\PHPMailer\PHPMailer')) {
+        // If using Composer
+        if (file_exists('vendor/autoload.php')) {
+            require 'vendor/autoload.php';
+        } else {
+            // Direct inclusion - you need to download PHPMailer first
+            require 'PHPMailer/src/Exception.php';
+            require 'PHPMailer/src/PHPMailer.php';
+            require 'PHPMailer/src/SMTP.php';
+        }
+    }
+
+    try {
+        $mail = new PHPMailer\PHPMailer\PHPMailer(true);
+        
+        // Server settings
+        // $mail->SMTPDebug = 2; // Uncomment for debugging
+        $mail->isSMTP();
+        $mail->Host       = 'smtp.gmail.com'; // Change to your SMTP server
+        $mail->SMTPAuth   = true;
+        $mail->Username   = 'swarajkanse2@gmail.com'; // Change to your email username
+        $mail->Password   = 'ovgb yzyc oibi folz'; // Change to your email password
+        $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port       = 587;
+
+        // Recipients
+        $mail->setFrom($from_email, $from_name);
+        $mail->addAddress($to);
+
+        // Content
+        $mail->isHTML(false);
+        $mail->Subject = $subject;
+        $mail->Body    = $message;
+
+        return $mail->send();
+    } catch (Exception $e) {
+        log_error("PHPMailer error: " . $e->getMessage());
+        return false;
+    }
+}
+
 try {
     // Check if form is submitted
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
@@ -64,33 +108,26 @@ try {
         $stmt->bind_param("sssss", $name, $email, $hashed_password, $verification_token, $token_expiry);
         
         if ($stmt->execute()) {
-            // Restore email verification
-            try {
-                // Send verification email
-                $verification_link = "http://" . $_SERVER['HTTP_HOST'] . "/verify_email.php?token=" . $verification_token;
+            // Prepare verification email
+            $verification_link = "http://" . $_SERVER['HTTP_HOST'] . "/verify_email.php?token=" . $verification_token;
+            
+            $subject = "Verify Your Email - Student Chatbot";
+            $message = "Hello " . $name . ",\n\n";
+            $message .= "Thank you for signing up! Please click the link below to verify your email address:\n\n";
+            $message .= $verification_link . "\n\n";
+            $message .= "This link will expire in 24 hours.\n\n";
+            $message .= "If you did not sign up for an account, please ignore this email.\n\n";
+            $message .= "Regards,\nStudent Chatbot Team";
+            
+            // Try to send email using our improved function
+            if (send_email($email, $subject, $message)) {
+                json_response(true, "Registration successful! Please check your email to verify your account.");
+            } else {
+                log_error("Failed to send verification email to: " . $email);
                 
-                $to = $email;
-                $subject = "Verify Your Email - Student Chatbot";
-                $message = "Hello " . $name . ",\n\n";
-                $message .= "Thank you for signing up! Please click the link below to verify your email address:\n\n";
-                $message .= $verification_link . "\n\n";
-                $message .= "This link will expire in 24 hours.\n\n";
-                $message .= "If you did not sign up for an account, please ignore this email.\n\n";
-                $message .= "Regards,\nStudent Chatbot Team";
-                $headers = "From: noreply@studentchatbot.com";
-                
-                if (mail($to, $subject, $message, $headers)) {
-                    json_response(true, "Registration successful! Please check your email to verify your account.");
-                } else {
-                    log_error("Failed to send verification email to: " . $email);
-                    
-                    // Keep the user in database but notify about the email issue
-                    json_response(true, "Account created, but failed to send verification email. Please contact support.");
-                }
-            } catch (Exception $e) {
-                log_error("Email sending exception: " . $e->getMessage());
-                // Keep the user in database but notify about the email issue
-                json_response(true, "Account created, but failed to send verification email. Please contact support.");
+                // Alternative: Create a resend verification page and redirect there
+                $_SESSION['pending_verification_email'] = $email;
+                json_response(true, "Account created, but we couldn't send the verification email. Please use the 'Resend Verification Email' option on the login page.");
             }
         } else {
             // Registration failed
