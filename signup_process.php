@@ -1,103 +1,111 @@
 <?php
+// Keep minimal error reporting for production
+ini_set('display_errors', 0); // Don't display errors in the response
+error_reporting(E_ALL); // Still report all types of errors to log
+
 session_start();
 require_once 'db_connect.php';
 require_once 'functions.php';
 
-// Check if form is submitted
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $name = trim($_POST['name']);
-    $email = trim($_POST['email']);
-    $password = $_POST['password'];
-    $confirm_password = $_POST['confirm-password'];
-    
-    // Basic validation
-    if (empty($name) || empty($email) || empty($password) || empty($confirm_password)) {
-        $_SESSION['error'] = "Please fill in all fields";
-        header("Location: signup.html");
-        exit();
-    }
-    
-    // Check if passwords match
-    if ($password !== $confirm_password) {
-        $_SESSION['error'] = "Passwords do not match";
-        header("Location: signup.html");
-        exit();
-    }
-    
-    // Password complexity validation
-    if (strlen($password) < 8 || !preg_match('/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/', $password)) {
-        $_SESSION['error'] = "Password must be at least 8 characters with uppercase, lowercase, number, and special character";
-        header("Location: signup.html");
-        exit();
-    }
-    
-    // Check if email already exists
-    $stmt = $conn->prepare("SELECT * FROM users WHERE email = ?");
-    $stmt->bind_param("s", $email);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    
-    if ($result->num_rows > 0) {
-        $_SESSION['error'] = "Email already exists";
-        header("Location: signup.html");
-        exit();
-    }
-    
-    // Generate verification token
-    $verification_token = bin2hex(random_bytes(32));
-    $token_expiry = date('Y-m-d H:i:s', strtotime('+24 hours'));
-    
-    // Hash password
-    $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-    
-    // Insert user into database
-    $stmt = $conn->prepare("INSERT INTO users (name, email, password, auth_method, verification_token, token_expiry, created_at) VALUES (?, ?, ?, 'email', ?, ?, NOW())");
-    $stmt->bind_param("sssss", $name, $email, $hashed_password, $verification_token, $token_expiry);
-    
-    if ($stmt->execute()) {
-        
+// Function to log errors
+function log_error($message) {
+    error_log($message, 3, "signup_errors.log");
+}
 
-        // Send verification email
-        $verification_link = "http://" . $_SERVER['HTTP_HOST'] . "/verify_email.php?token=" . $verification_token;
-        
-        $to = $email;
-        $subject = "Verify Your Email - Student Chatbot";
-        $message = "Hello " . $name . ",\n\n";
-        $message .= "Thank you for signing up! Please click the link below to verify your email address:\n\n";
-        $message .= $verification_link . "\n\n";
-        $message .= "This link will expire in 24 hours.\n\n";
-        $message .= "If you did not sign up for an account, please ignore this email.\n\n";
-        $message .= "Regards,\nStudent Chatbot Team";
-        $headers = "From: noreply@studentchatbot.com";
-        
-        if (mail($to, $subject, $message, $headers)) {
-            $_SESSION['success'] = "Registration successful! Please check your email to verify your account.";
-            header("Location: login.html");
-            exit();
-        } else {
-            // Email sending failed
-            $_SESSION['error'] = "Failed to send verification email. Please try again.";
-            
-            // Delete the user since verification email failed
-            $stmt = $conn->prepare("DELETE FROM users WHERE email = ?");
-            $stmt->bind_param("s", $email);
-            $stmt->execute();
-            
-            header("Location: signup.html");
-            exit();
-        }
-    } else {
-        // Registration failed
-        $_SESSION['error'] = "Registration failed. Please try again.";
-        header("Location: signup.html");
-        exit();
-    }
-    
-    $stmt->close();
-} else {
-    // Not a POST request
-    header("Location: signup.html");
+// Function to return JSON response
+function json_response($success, $message) {
+    header('Content-Type: application/json');
+    echo json_encode(['success' => $success, 'message' => $message]);
     exit();
+}
+
+try {
+    // Check if form is submitted
+    if ($_SERVER["REQUEST_METHOD"] == "POST") {
+        $name = isset($_POST['name']) ? trim($_POST['name']) : '';
+        $email = isset($_POST['email']) ? trim($_POST['email']) : '';
+        $password = isset($_POST['password']) ? $_POST['password'] : '';
+        $confirm_password = isset($_POST['confirm-password']) ? $_POST['confirm-password'] : '';
+        
+        // Basic validation
+        if (empty($name) || empty($email) || empty($password) || empty($confirm_password)) {
+            json_response(false, "Please fill in all fields");
+        }
+        
+        // Check if passwords match
+        if ($password !== $confirm_password) {
+            json_response(false, "Passwords do not match");
+        }
+        
+        // Password complexity validation
+        if (strlen($password) < 8 || !preg_match('/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/', $password)) {
+            json_response(false, "Password must be at least 8 characters with uppercase, lowercase, number, and special character");
+        }
+        
+        // Check if email already exists
+        $stmt = $conn->prepare("SELECT * FROM users WHERE email = ?");
+        $stmt->bind_param("s", $email);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        if ($result->num_rows > 0) {
+            json_response(false, "Email already exists");
+        }
+        
+        // Generate verification token
+        $verification_token = bin2hex(random_bytes(32));
+        $token_expiry = date('Y-m-d H:i:s', strtotime('+24 hours'));
+        
+        // Hash password
+        $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+        
+        // Insert user into database
+        $stmt = $conn->prepare("INSERT INTO users (name, email, password, auth_method, verification_token, token_expiry, created_at) VALUES (?, ?, ?, 'email', ?, ?, NOW())");
+        $stmt->bind_param("sssss", $name, $email, $hashed_password, $verification_token, $token_expiry);
+        
+        if ($stmt->execute()) {
+            // Restore email verification
+            try {
+                // Send verification email
+                $verification_link = "http://" . $_SERVER['HTTP_HOST'] . "/verify_email.php?token=" . $verification_token;
+                
+                $to = $email;
+                $subject = "Verify Your Email - Student Chatbot";
+                $message = "Hello " . $name . ",\n\n";
+                $message .= "Thank you for signing up! Please click the link below to verify your email address:\n\n";
+                $message .= $verification_link . "\n\n";
+                $message .= "This link will expire in 24 hours.\n\n";
+                $message .= "If you did not sign up for an account, please ignore this email.\n\n";
+                $message .= "Regards,\nStudent Chatbot Team";
+                $headers = "From: noreply@studentchatbot.com";
+                
+                if (mail($to, $subject, $message, $headers)) {
+                    json_response(true, "Registration successful! Please check your email to verify your account.");
+                } else {
+                    log_error("Failed to send verification email to: " . $email);
+                    
+                    // Keep the user in database but notify about the email issue
+                    json_response(true, "Account created, but failed to send verification email. Please contact support.");
+                }
+            } catch (Exception $e) {
+                log_error("Email sending exception: " . $e->getMessage());
+                // Keep the user in database but notify about the email issue
+                json_response(true, "Account created, but failed to send verification email. Please contact support.");
+            }
+        } else {
+            // Registration failed
+            log_error("Database insert failed: " . $conn->error);
+            json_response(false, "Registration failed. Please try again.");
+        }
+        
+        $stmt->close();
+    } else {
+        // Not a POST request
+        json_response(false, "Invalid request method");
+    }
+} catch (Exception $e) {
+    log_error("Exception caught: " . $e->getMessage());
+    json_response(false, "An error occurred. Please try again later.");
 }
 
 $conn->close();

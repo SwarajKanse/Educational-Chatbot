@@ -6,7 +6,7 @@ $db_pass = "";
 $db_name = "student_chatbot";
 
 // Create connection
-$conn = new mysqli($db_host, $db_user, $db_pass, $db_name);
+$conn = new mysqli($db_host, $db_user, $db_pass, $db_name, 3307);
 
 // Check connection
 if ($conn->connect_error) {
