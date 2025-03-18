@@ -1,78 +1,132 @@
 <?php
-// direct_verify.php - A simplified verification script with no dependencies
-// Place this file in your project directory and access it directly with your token
-
-// Display all errors
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
+// direct_verify.php - Minimal UI for email verification
 
 // Database connection
-$host = "localhost"; // Change if needed
-$username = "root";  // Change to your DB username
-$password = "";      // Change to your DB password
-$dbname = "student_chatbot"; // Change to your DB name
+$host = "localhost"; 
+$username = "root";  
+$password = "";      
+$dbname = "student_chatbot"; 
 
 // Create connection
 $conn = new mysqli($host, $username, $password, $dbname, 3307);
 
 // Check connection
 if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
-}
-
-echo "<h1>Email Verification</h1>";
-
-// Check if token is provided
-if (!isset($_GET['token']) || empty($_GET['token'])) {
-    die("<p style='color:red'>No verification token provided</p>");
-}
-
-$token = $_GET['token'];
-echo "<p>Processing token: " . htmlspecialchars(substr($token, 0, 10) . "...") . "</p>";
-
-// Find user by token
-$sql = "SELECT * FROM users WHERE verification_token = '$token'";
-$result = $conn->query($sql);
-
-if ($result->num_rows == 0) {
-    die("<p style='color:red'>No user found with this token</p>");
-}
-
-$user = $result->fetch_assoc();
-echo "<p>Found user ID: " . $user['id'] . "</p>";
-echo "<p>Current verification status: " . ($user['is_verified'] == 1 ? "Verified" : "Not verified") . "</p>";
-
-// If already verified
-if ($user['is_verified'] == 1) {
-    echo "<p style='color:green'>Your email is already verified!</p>";
-    echo "<p><a href='login.html'>Go to Login Page</a></p>";
-    $conn->close();
-    exit();
-}
-
-// Update user verification status - direct query
-$user_id = $user['id'];
-$update_sql = "UPDATE users SET is_verified = 1, verification_token = NULL, token_expiry = NULL WHERE id = $user_id";
-
-if ($conn->query($update_sql) === TRUE) {
-    echo "<p style='color:green'>Verification successful!</p>";
-    
-    // Verify the update worked
-    $check_sql = "SELECT is_verified FROM users WHERE id = $user_id";
-    $check_result = $conn->query($check_sql);
-    $updated_user = $check_result->fetch_assoc();
-    
-    if ($updated_user['is_verified'] == 1) {
-        echo "<p style='color:green'>Database update confirmed. You can now log in.</p>";
-    } else {
-        echo "<p style='color:red'>Warning: Database says account is still unverified.</p>";
-    }
-    
-    echo "<p><a href='login.html'>Go to Login Page</a></p>";
+    $message = "Connection failed: " . $conn->connect_error;
+    $status = false;
 } else {
-    echo "<p style='color:red'>Error updating record: " . $conn->error . "</p>";
+    // Process verification
+    if (!isset($_GET['token']) || empty($_GET['token'])) {
+        $message = "No verification token provided";
+        $status = false;
+    } else {
+        $token = $_GET['token'];
+        
+        // Find user by token
+        $sql = "SELECT * FROM users WHERE verification_token = ?";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("s", $token);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        if ($result->num_rows == 0) {
+            $message = "Invalid verification token";
+            $status = false;
+        } else {
+            $user = $result->fetch_assoc();
+            
+            // If already verified
+            if ($user['is_verified'] == 1) {
+                $message = "Your email is already verified";
+                $status = true;
+            } else {
+                // Update user verification status
+                $user_id = $user['id'];
+                $update_sql = "UPDATE users SET is_verified = 1, verification_token = NULL, token_expiry = NULL WHERE id = ?";
+                $update_stmt = $conn->prepare($update_sql);
+                $update_stmt->bind_param("i", $user_id);
+                
+                if ($update_stmt->execute()) {
+                    $message = "Your email has been successfully verified";
+                    $status = true;
+                } else {
+                    $message = "Error updating record";
+                    $status = false;
+                }
+                $update_stmt->close();
+            }
+        }
+        $stmt->close();
+    }
+    $conn->close();
 }
-
-$conn->close();
 ?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Verification</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f7fa;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+        
+        .card {
+            background: white;
+            max-width: 400px;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        h1 {
+            color: #4285f4;
+            margin-top: 0;
+        }
+        
+        .message {
+            margin: 20px 0;
+            line-height: 1.5;
+        }
+        
+        .success {
+            color: #34a853;
+        }
+        
+        .error {
+            color: #ea4335;
+        }
+        
+        .btn {
+            display: inline-block;
+            background-color: #4285f4;
+            color: white;
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Email Verification</h1>
+        
+        <div class="message <?php echo $status ? 'success' : 'error'; ?>">
+            <?php echo htmlspecialchars($message); ?>
+        </div>
+        
+        <a href="login.html" class="btn">Go to Login</a>
+    </div>
+</body>
+</html>
